@@ -1,29 +1,20 @@
 # SpeechMirror
 
-SpeechMirror is a local, evidence-first speech delivery analysis prototype. It compares a participant recording against an ideal recording of the same transcript, aligns both recordings at word level, extracts acoustic features, detects time-localized delivery changes, and reports rubric scores with numeric evidence.
+SpeechMirror compares a speaker's delivery with a reference recording of the **same words**. It extracts measurable audio features, finds delivery differences, and shows timestamped evidence and feedback in a local dashboard.
 
-The repository does **not** contain a genuine human speech corpus. The optional synthetic demo creates test tones, not speech, and must not be presented as real speech, an accuracy benchmark, or evidence of human performance. Ingest self-recorded or openly licensed speech and record the permission/provenance before using the system for real evaluation.
+> **Know what the demo data is:** the included/generated demo uses artificial test tones. It is not spoken English, a real speech dataset, or a valid accuracy benchmark. To evaluate speech, add recordings you made or are licensed to use.
 
-## Implemented pipeline
+## Quick start (Windows / PowerShell)
 
-1. Ingest a manifest of ideal/participant audio pairs and exact transcripts; normalize audio to mono 16 kHz PCM WAV and record source hashes.
-2. Validate audio paths, transcript metadata, temporal labels, dataset splits, and source provenance.
-3. Align baseline and participant words with WhisperX forced alignment (optional model dependency). An explicitly labelled uniform estimate is provided for UI/pipeline smoke tests only.
-4. Extract frame-level RMS/dB, F0, MFCC, spectral centroid, flatness, bandwidth, and zero-crossing features.
-5. Aggregate measurements over aligned words; compare pace, pauses, speaker-relative pitch contour, energy, and spectral evidence.
-6. Generate temporal flaw cards, dimension scores, causal explanations, recommended actions, and reproducibility hashes.
-7. Display audio, word timing, feature overlays, score cards, evidence, and JSON/CSV exports in Streamlit.
+These steps run the dashboard and API in separate terminals. Run commands from the repository folder:
 
-## Requirements
+```powershell
+cd C:\Users\minha\Documents\atib\Charusat\sem7\SpeechMirror
+```
 
-- Python 3.10 or 3.11
-- Windows, macOS, or Linux
-- FFmpeg available on `PATH` for MP3/M4A decoding (WAV does not require FFmpeg)
-- WhisperX and its compatible PyTorch/CUDA stack for genuine forced alignment. See [Forced alignment setup](#forced-alignment-setup).
+### 1. Create a Python environment and install requirements
 
-## Windows setup
-
-Run these commands from the repository root in PowerShell:
+Do this once. Python 3.10 or 3.11 is recommended.
 
 ```powershell
 python -m venv .venv
@@ -32,95 +23,121 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-If PowerShell blocks activation, use `Set-ExecutionPolicy -Scope Process Bypass`, then activate the environment again.
+If PowerShell says script execution is disabled, run this in the same terminal and activate again:
 
-### Build a synthetic smoke-test dataset
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\.venv\Scripts\Activate.ps1
+```
 
-This generates artificial tones solely to check that ingestion, UI, and feature code execute:
+When you open a new terminal later, activate the environment in that terminal too:
+
+```powershell
+cd C:\Users\minha\Documents\atib\Charusat\sem7\SpeechMirror
+.\.venv\Scripts\Activate.ps1
+```
+
+### 2. Create demo data (first run only)
+
+This is just to confirm that the app and audio pipeline start. Do **not** run it over a dataset of real recordings; the script refuses to replace an existing non-synthetic manifest.
 
 ```powershell
 python scripts\build_real_dataset.py --synthetic-demo
 python scripts\validate_dataset.py
 ```
 
-### Ingest genuine paired recordings
+Expected validation output begins with `Dataset valid`.
 
-1. Record the same exact English transcript as an ideal and a flawed delivery. Prefer the same speaker, microphone, and room; change one main delivery behavior at a time.
-2. Keep the recordings and a CSV manifest together. Start from [dataset/manifest.example.csv](dataset/manifest.example.csv). Paths in that source CSV are relative to the CSV file or absolute.
-3. Replace the example values, including the exact transcript, audio paths, `source_license` (permission/license), flaw label, severity (0–4), and any known start/end times.
-4. Ingest and validate:
+### 3. Start the API (Terminal 1)
+
+Use `python -m uvicorn`, not the `uvicorn` command. This avoids Windows PATH issues. For the port you are already using:
 
 ```powershell
-python scripts\build_real_dataset.py --source-manifest .\my-recordings\manifest.csv
+python -m uvicorn backend.main:app --host 127.0.0.1 --port 8002
+```
+
+Leave this terminal open. Check that the API is ready:
+
+- Health: http://127.0.0.1:8002/api/health
+- Interactive API docs: http://127.0.0.1:8002/docs
+
+### 4. Start the dashboard (Terminal 2)
+
+Open another PowerShell window, go to the project folder, activate `.venv`, then run:
+
+```powershell
+cd C:\Users\minha\Documents\atib\Charusat\sem7\SpeechMirror
+.\.venv\Scripts\Activate.ps1
+python -m streamlit run app.py
+```
+
+Open the URL Streamlit prints, usually http://localhost:8501. If that port is busy, Streamlit will print a different port; open the URL it gives you.
+
+The dashboard currently analyzes the selected dataset directly in its own process. The API is a separate service for API clients and API testing; **the dashboard does not send its analysis requests to the API port**. Therefore, changing the API port to 8002 does not change the dashboard URL or fix missing alignment packages.
+
+### 5. Try the demo analysis
+
+1. In the dashboard sidebar, keep the provided demo reference selected.
+2. For the generated test-tone demo, choose **Uniform estimate (demo only)** under Alignment.
+3. Click **Analyze delivery**.
+4. Review the score cards, waveform, word-level table, feature chart, and flaw evidence.
+
+Uniform estimate divides the recording duration evenly among transcript words. It is **not forced alignment** and should not be used to judge speech or report alignment accuracy.
+
+## Analyze real speech recordings
+
+The project does not supply a genuine speech corpus. Prepare a matched pair of recordings:
+
+- **Ideal/reference:** a clear delivery of the transcript.
+- **Participant/flawed:** the same exact transcript, delivered with a known change such as fast pacing or a long pause.
+
+For a useful comparison, record both takes with the same speaker, microphone, and room when possible. Only vary one main delivery behavior at a time. Keep the original recordings and a source CSV together, and use the template [dataset/manifest.example.csv](dataset/manifest.example.csv).
+
+In that CSV, update the example row and paths:
+
+- `sample_id`: unique ID using letters, numbers, `_` or `-`.
+- `transcript`: exact words spoken in both recordings.
+- `ideal_audio`, `participant_audio`: paths to the two source files, relative to the CSV file or absolute.
+- `flaw_type`, `severity`: label and severity from 0 to 4.
+- `source_license`: permission or license/provenance; do not leave this blank.
+- `start_sec`, `end_sec`: optional known flaw interval in seconds.
+- `text_id` and `split`: keep every variant of the same text in one split.
+
+Then, from the project root:
+
+```powershell
+python scripts\build_real_dataset.py --source-manifest C:\path\to\your-recordings\manifest.csv
 python scripts\validate_dataset.py
 ```
 
-The ingestion script stores normalized copies in `dataset/audio`, transcripts in `dataset/texts`, labels in `dataset/labels`, and a resolved catalog in `dataset/manifest.csv`. Original source audio SHA-256 hashes and provenance are retained in the catalog. Audio is not uploaded to a third-party service by this local pipeline. Ensure you have the required speaker consent and redistribution rights before storing or sharing source audio.
+The importer creates normalized mono 16 kHz WAV copies, transcript files, labels, and the dataset catalog. It keeps source audio hashes and provenance in the catalog. It adds new sample IDs to the existing manifest; it rejects duplicate IDs rather than overwriting them.
 
-If one sample has multiple annotated flaw regions, supply a second label CSV with `sample_id,flaw_id,start_sec,end_sec,severity,feature_expected` and pass it using `--labels-manifest .\my-recordings\flaws.csv`. The CSV may contain several rows for the same sample.
+For multiple labeled regions per sample, make a second CSV with columns `sample_id,flaw_id,start_sec,end_sec,severity,feature_expected` and add `--labels-manifest C:\path\to\your-recordings\flaws.csv`.
 
-Use multiple transcript groups to create meaningful train/validation/test splits. The importer groups all variants of a transcript into one split; with fewer than three transcript groups it assigns them to `train` because a blind test split would not be meaningful. Never tune thresholds on the held-out `test` split.
+Use at least three different transcript groups if you want the importer to make train/validation/test splits. Variants of one transcript stay in the same split to reduce data leakage. Small datasets are assigned to `train`; they do not provide a meaningful blind test.
 
-## Forced alignment setup
+## Forced alignment: WhisperX
 
-Forced alignment requires a transcript and a compatible acoustic alignment model. Install the appropriate PyTorch build for your machine first, then install WhisperX in the activated virtual environment:
+The dashboard/API defaults to **WhisperX forced alignment**. If WhisperX is missing, analysis reports `No module named 'whisperx'`. Port 8002 does not affect this dependency.
+
+WhisperX and PyTorch have platform-specific requirements. In the activated `.venv`, install a PyTorch build that matches your machine using the official PyTorch installation instructions, then install WhisperX:
 
 ```powershell
 python -m pip install whisperx
+python -c "import whisperx; print('WhisperX is installed')"
 ```
 
-WhisperX may download model weights on first use and has additional platform/model requirements. Check the WhisperX installation documentation and configure FFmpeg for non-WAV audio. Model files are not bundled in this repository. The API uses WhisperX by default and returns an explicit error if it is unavailable; it never labels proportional timing estimates as forced alignment.
+WhisperX may download alignment-model weights on first use and can require FFmpeg. The model is not bundled with SpeechMirror. If installation is not available, use **Uniform estimate (demo only)** to check the UI; it does not replace forced alignment. WAV is recommended. MP3/M4A decoding may require FFmpeg on `PATH`.
 
-The aligner uses CPU by default. To run it on a PyTorch-supported CUDA device, set `SPEECHMIRROR_DEVICE` before starting both app processes:
+WhisperX uses CPU by default. To select CUDA (only if your PyTorch installation supports it), set this in **both** app terminals before starting them:
 
 ```powershell
 $env:SPEECHMIRROR_DEVICE = "cuda"
 ```
 
-For a quick pipeline/UI smoke test without WhisperX, choose **Uniform estimate (demo only)** in the dashboard or pass `alignment_mode=estimate` to the API. These timestamps split total audio duration uniformly and are not valid alignment or benchmark labels.
+## Run the dataset pipeline tools
 
-## Run the app
-
-In one PowerShell window at the repository root:
-
-```powershell
-python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
-```
-
-In another window, activate the same virtual environment and run:
-
-```powershell
-python -m streamlit run app.py
-```
-
-Open the Streamlit URL printed in the terminal (usually `http://localhost:8501`). Select a dataset reference, retain its exact transcript, optionally upload participant WAV/MP3/M4A, and choose forced or demo-estimate alignment. The dashboard includes a waveform with detected-region overlays, aligned word table, baseline/participant feature plots, timestamp seeking, rubric cards, and JSON/CSV export. Uploaded files are size-limited and deleted after analysis; only a preview in the current Streamlit session and the derived analysis result are retained locally. Uploaded audio is excluded from the disk feature/alignment cache.
-
-## API
-
-- `GET /api/health` — readiness and dataset record count
-- `GET /api/config` — active feature thresholds and rubric weights
-- `GET /api/dataset` and `GET /api/dataset/{sample_id}` — validated dataset catalog
-- `GET /api/manifest` — CSV manifest records
-- `POST /api/analyze` — baseline ID + exact transcript + optional audio upload + alignment mode
-- `POST /api/align` — word alignment for uploaded audio/transcript
-- `POST /api/features` — frame-level feature extraction for a dataset role or uploaded audio
-- `POST /api/compare` — contrastive analysis (same input contract as analyze)
-- `GET /api/result/{analysis_id}` — saved JSON result
-- `GET /api/audio/{sample_id}?role=ideal|participant` — stream dataset audio
-
-Interactive API documentation is available at `http://127.0.0.1:8000/docs`.
-
-### Example analyze request
-
-```powershell
-curl.exe -X POST "http://127.0.0.1:8000/api/analyze" `
-  -F "baseline_id=speaker01_text01_fast" `
-  -F "transcript=Paste the exact spoken transcript here." `
-  -F "alignment_mode=whisperx" `
-  -F "audio=@C:\path\to\participant.wav"
-```
-
-## Dataset / reproducibility tools
+Run these from the project root, with `.venv` activated:
 
 ```powershell
 python scripts\validate_dataset.py
@@ -129,43 +146,82 @@ python scripts\extract_features.py
 python scripts\benchmark.py --method whisperx --split test
 ```
 
-`extract_features.py` writes Parquet frame artifacts, `align_dataset.py` writes word-alignment JSON, and `benchmark.py` reports temporal IoU, detection precision/recall, timestamp error, severity MAE, repeated-score delta, and false-positive rate on the ideal reference against `dataset/labels/flaw_regions.csv`. Meaningful benchmark results require genuine held-out labeled recordings; the synthetic demo is not valid benchmark data. With fewer than three text groups the importer deliberately creates no validation/test split; use `python scripts\benchmark.py --method estimate --all` only for a pipeline smoke test, not a quality claim.
+- `validate_dataset.py` checks manifest files, audio format, labels, splits, and saved alignments.
+- `align_dataset.py` writes per-recording word-alignment JSON files.
+- `extract_features.py` writes per-recording frame features as Parquet.
+- `benchmark.py` compares detections against labeled regions and reports temporal IoU, precision/recall, timestamp error, severity error, repeated-run consistency, and ideal-recording false positives.
 
-### Run automated tests
+Benchmark figures only mean something with genuine, correctly annotated held-out speech. Do not present synthetic-demo output as accuracy.
+
+## API on port 8002
+
+With the backend running in Terminal 1:
+
+- Health check: http://127.0.0.1:8002/api/health
+- Swagger/API explorer: http://127.0.0.1:8002/docs
+- Dataset records: http://127.0.0.1:8002/api/dataset
+
+Example API analysis using PowerShell's `curl.exe`:
+
+```powershell
+curl.exe -X POST "http://127.0.0.1:8002/api/analyze" `
+  -F "baseline_id=YOUR_SAMPLE_ID" `
+  -F "transcript=THE EXACT TRANSCRIPT FROM YOUR DATASET" `
+  -F "alignment_mode=whisperx" `
+  -F "audio=@C:\path\to\participant.wav"
+```
+
+For a smoke test without WhisperX, set `alignment_mode=estimate`. The API also provides `/api/align`, `/api/features`, `/api/compare`, `/api/result/{analysis_id}`, and `/api/audio/{sample_id}`.
+
+## Common problems
+
+| Message / symptom | What to do |
+|---|---|
+| `uvicorn is not recognized` | Activate `.venv` and run `python -m uvicorn ...` instead. |
+| `No module named 'whisperx'` | Install WhisperX in the same activated `.venv`, or select **Uniform estimate (demo only)** for a smoke test. |
+| `No module named ...` for another dependency | Activate `.venv`, then run `python -m pip install -r requirements.txt`. |
+| Port 8002 is already in use | Stop the other backend with Ctrl+C, or choose another API port. Update the API URL in your request too. |
+| Streamlit uses another port | Open the URL Streamlit prints; it runs separately from the API. |
+| `Transcript must exactly match...` | Use the exact transcript in the selected dataset record. |
+| MP3/M4A cannot be decoded | Install FFmpeg and add it to `PATH`, or use WAV. |
+| No dataset manifest / records | Run dataset ingestion or the synthetic smoke-test setup above. |
+
+To stop either server, focus its terminal and press **Ctrl+C**.
+
+## What the project measures
+
+The pipeline extracts RMS/energy, pitch/F0, MFCC, spectral centroid, spectral flatness, bandwidth, and zero-crossing rate. It compares aligned words and produces pace, pause, pitch, energy, clarity-shift, and cadence evidence with deterministic rubric scores. Configuration and weights are in [configs/pipeline.json](configs/pipeline.json).
+
+This is a local research/hackathon prototype, not a validated production speech judge. Energy is sensitive to microphone/gain differences; alignment errors affect word-level results; spectral shifts are not direct intelligibility judgments. Thresholds need calibration against consented, human-labeled recordings. The project does not judge meaning, correctness, emotion, or personality.
+
+## Privacy and generated files
+
+Uploaded audio is size-limited and removed by the API after processing. Analysis results and dataset-only caches are stored locally under `tmp/`; results include derived transcript, timestamps, scores, and evidence, but not the uploaded audio. The Streamlit dashboard keeps its uploaded audio preview only in the active session. Remove the local `tmp/results/`, `tmp/cache/`, or `tmp/speechmirror.sqlite3` artifacts if you want to clear those outputs.
+
+## Tests and optional Docker
+
+Run tests:
 
 ```powershell
 python -m unittest discover -s tests -v
 ```
 
-### Docker
-
-After ingesting a dataset into `dataset/`, run:
+After ingesting your dataset, optional Docker startup is:
 
 ```powershell
 docker compose up --build
 ```
 
-The API is exposed on port 8000 and the dashboard on port 8501. The local dataset and `tmp` outputs are mounted into both containers. WhisperX model dependencies/weights are optional and are not installed in the base image.
+Docker exposes the API on port 8000 and the dashboard on port 8501. The base image does not install WhisperX or its model weights.
 
-Thresholds, frame parameters, and rubric dimension weights live in [configs/pipeline.json](configs/pipeline.json). Dataset-only feature/alignment cache entries are content/config/model keyed under `tmp/cache`; output analysis JSON and the local SQLite result index are under `tmp/results` and `tmp/speechmirror.sqlite3`. Remove those specific local artifact paths when clearing cached analysis results.
-
-## Privacy, limitations, and interpretation
-
-- Local analysis by default; no hosted transcription call is made.
-- Uploaded analysis audio is deleted after each API request and is not written to the disk feature cache. The result database retains the derived transcript, timestamps, scores, and numeric word evidence; delete the named `tmp/results` and `tmp/speechmirror.sqlite3` artifacts to remove those results.
-- Energy comparisons depend on comparable recording gain/microphone conditions. Record those conditions and interpret energy changes cautiously.
-- Speech-rate comparisons and word-level timestamps depend on accurate forced alignment. Review low-coverage or suspicious alignments; do not use estimates as ground truth.
-- Spectral changes are acoustic indicators, not direct intelligibility or speech-quality judgments.
-- The rubric is deterministic and evidence-linked, but its example thresholds require calibration on consented, correctly labeled data before consequential use.
-- The system does not infer emotion, personality, truthfulness, or speech-content correctness.
-
-## Repository layout
+## Project layout
 
 ```text
-backend/                 FastAPI endpoints, schemas, audio/dataset services
-configs/pipeline.json    Versioned feature thresholds and rubric weights
-dataset/                 Local manifest, labels, audio, alignments, features
-scripts/                 Dataset ingestion, alignment, feature, validation, benchmark
-speechmirror/            Acoustic features, comparison, scoring, Streamlit UI
-tests/                   Reproducibility, validation, feature/evaluation tests
+app.py                         Streamlit entry point
+backend/                       FastAPI API and dataset/audio services
+configs/pipeline.json          Versioned feature settings, thresholds, rubric weights
+dataset/manifest.example.csv   Source dataset CSV template
+scripts/                       Ingestion, validation, alignment, features, benchmark
+speechmirror/                   Features, scoring, and dashboard implementation
+tests/                         API, dataset, alignment, scoring, and repeatability tests
 ```
