@@ -1,0 +1,21 @@
+{
+  "pair_id": "demo-pair-001",
+  "speaker_id": "speaker-01",
+  "transcript": "Welcome to the workshop. Speak with steady pacing, clear articulation, and confident delivery.",
+  "ideal_audio": "C:\\Users\\minha\\Documents\\atib\\Charusat\\sem7\\SpeechMirror\\data\\demo\\ideal.wav",
+  "participant_audio": "C:\\Users\\minha\\Documents\\atib\\Charusat\\sem7\\SpeechMirror\\data\\demo\\participant.wav",
+  "labels": [
+    {
+      "type": "pitch_drop",
+      "start": 2.2,
+      "end": 4.8,
+      "severity": 0.82
+    },
+    {
+      "type": "tempo_spike",
+      "start": 2.6,
+      "end": 4.5,
+      "severity": 0.74
+    }
+  ]
+}
