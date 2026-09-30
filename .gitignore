@@ -3,7 +3,16 @@ __pycache__/
 .venv/
 venv/
 .DS_Store
+tmp/
 *.wav
 *.csv
 *.json
+*.parquet
 !data/**/*.json
+!configs/pipeline.json
+!dataset/manifest.example.csv
+dataset/audio/
+dataset/texts/
+dataset/labels/
+dataset/alignments/
+dataset/features/

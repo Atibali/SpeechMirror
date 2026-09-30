@@ -1,0 +1,2 @@
+sample_id,baseline_id,text_id,speaker_id,recording_id,transcript,ideal_audio,participant_audio,condition,flaw_type,severity,start_sec,end_sec,feature_expected,source_license,source_url,split,recording_conditions,notes
+speaker01_text01_fast,speaker01_text01,speech01,speaker01,take01,"Paste the exact spoken transcript here.",audio/speaker01_text01_ideal.wav,audio/speaker01_text01_fast.wav,flawed,PACE_FAST,2,12.3,16.8,speech_rate,Self-recorded with speaker consent,,train,"Same speaker, microphone and room for paired takes.","Change one main delivery feature at a time."

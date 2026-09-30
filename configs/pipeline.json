@@ -1,0 +1,46 @@
+{
+  "features": {
+    "sample_rate": 16000,
+    "frame_length": 1024,
+    "hop_length": 320,
+    "pitch_frame_length": 2048,
+    "n_mfcc": 13
+  },
+  "alignment": {
+    "sample_rate": 16000,
+    "language": "en",
+    "model_id": "whisperx-default-for-language"
+  },
+  "detector": {
+    "pace_relative_threshold": 0.25,
+    "pause_delta_seconds": 0.6,
+    "pitch_range_reduction": 0.45,
+    "energy_z_threshold": 2.0,
+    "energy_scale_floor_db": 3.0,
+    "minimum_duration_seconds": 0.25,
+    "minimum_alignment_confidence": 0.4,
+    "minimum_speech_activity_fraction": 0.15,
+    "pitch_spike_threshold_semitones": 4.0,
+    "minimum_voiced_fraction": 0.4,
+    "spectral_centroid_delta_hz": 1200.0,
+    "spectral_flatness_delta": 0.2,
+    "consistency_cv_delta": 0.5
+  },
+  "severity_scales": {
+    "pace_relative_delta_saturation": 1.0,
+    "pause_delta_seconds_saturation": 2.0,
+    "pitch_range_reduction_saturation": 0.8,
+    "pitch_spike_semitone_saturation": 8.0,
+    "energy_robust_z_saturation": 4.0,
+    "clarity_delta_saturation": 3.0,
+    "cadence_cv_saturation": 1.5
+  },
+  "rubric_weights": {
+    "pacing": 0.25,
+    "pitch": 0.2,
+    "energy": 0.2,
+    "clarity": 0.15,
+    "pausing": 0.1,
+    "consistency": 0.1
+  }
+}
